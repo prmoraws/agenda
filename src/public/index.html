@@ -10,6 +10,17 @@
   <header><h1>Agenda Business</h1><p>Agendamentos seguros para grupos autorizados</p></header>
   <main>
     <section>
+      <h2>0. Conexão WhatsApp Business</h2>
+      <div id="whatsapp-status">Consultando instância...</div>
+      <div class="card-actions">
+        <button id="create-instance">Criar instância isolada</button>
+        <button id="show-qrcode" class="secondary">Mostrar QR Code</button>
+        <button id="import-groups" class="secondary">Importar grupos</button>
+      </div>
+      <div id="qrcode"></div>
+      <p class="notice">A conexão permite descobrir grupos. O envio de mensagens permanece bloqueado.</p>
+    </section>
+    <section>
       <h2>1. Grupos autorizados</h2>
       <form id="group-form">
         <label>Nome do grupo<input name="displayName" required maxlength="200" placeholder="Ex.: Coordenação UNP"></label>

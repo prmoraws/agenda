@@ -5,17 +5,70 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import pg from 'pg';
 import { validateDraft, validateGroup } from './domain.mjs';
+import {
+  connectInstance, createInstance, fetchGroups, fetchInstances,
+  findInstance, normalizeGroups,
+} from './evolution.mjs';
 
 const app = Fastify({ logger: true });
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const instanceName = process.env.DOMO_BUSINESS_INSTANCE_NAME ?? 'domo-business-agendamentos';
 const publicRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
+let groupImportInProgress = false;
 
 await app.register(fastifyStatic, { root: publicRoot });
 
 app.get('/health', async () => {
   await pool.query('SELECT 1');
   return { status: 'ok', service: 'agenda', sendingEnabled: false };
+});
+
+app.get('/api/whatsapp/status', async () => {
+  const payload = await fetchInstances();
+  const instance = findInstance(payload, instanceName);
+  return {
+    instanceName,
+    exists: Boolean(instance),
+    state: instance?.connectionStatus ?? instance?.instance?.state ?? instance?.state ?? 'not_created',
+    sendingEnabled: false,
+  };
+});
+
+app.post('/api/whatsapp/instance', async () => {
+  const existing = findInstance(await fetchInstances(), instanceName);
+  if (existing) return { status: 'already_exists', instanceName, sendingEnabled: false };
+  await createInstance(instanceName);
+  return { status: 'created', instanceName, sendingEnabled: false };
+});
+
+app.get('/api/whatsapp/qrcode', async () => {
+  const payload = await connectInstance(instanceName);
+  const base64 = payload?.base64 ?? payload?.qrcode?.base64 ?? payload?.code ?? null;
+  return { instanceName, base64, pairingCode: payload?.pairingCode ?? null };
+});
+
+app.post('/api/whatsapp/import-groups', async (_request, reply) => {
+  if (groupImportInProgress) {
+    return reply.code(409).send({ error: 'Uma importação de grupos já está em andamento' });
+  }
+  groupImportInProgress = true;
+  try {
+    const groups = normalizeGroups(await fetchGroups(instanceName));
+    let imported = 0;
+    for (const group of groups) {
+      const result = await pool.query(`
+        INSERT INTO business_groups (instance_name, group_jid, display_name)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (instance_name, group_jid)
+        DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = NOW()
+        RETURNING id
+      `, [instanceName, group.groupJid, group.displayName]);
+      imported += result.rowCount;
+    }
+    return { status: 'ok', discovered: groups.length, imported, authorizedAutomatically: false };
+  } finally {
+    groupImportInProgress = false;
+  }
 });
 
 app.get('/api/groups', async () => {

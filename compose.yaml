@@ -11,11 +11,17 @@ services:
       PORT: 3010
       DATABASE_URL: postgresql://${POSTGRES_USER:-agenda}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agenda}
       SCHEDULER_TIMEZONE: ${DOMO_SCHEDULER_TIMEZONE:-America/Bahia}
+      DOMO_BUSINESS_INSTANCE_NAME: ${DOMO_BUSINESS_INSTANCE_NAME:-domo-business-agendamentos}
+      EVOLUTION_URL: http://evolution:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      WHATSAPP_SENDING_ENABLED: "false"
     ports:
       - "127.0.0.1:${AGENDA_PORT:-3010}:3010"
     depends_on:
       postgres:
         condition: service_healthy
+      evolution:
+        condition: service_started
     networks:
       - backend
       - edge
@@ -41,6 +47,80 @@ services:
     networks:
       - backend
 
+  evolution-postgres:
+    image: postgres:17-alpine
+    container_name: agenda-evolution-postgres
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-America/Bahia}
+      POSTGRES_DB: ${EVOLUTION_POSTGRES_DB}
+      POSTGRES_USER: ${EVOLUTION_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EVOLUTION_POSTGRES_PASSWORD}
+    volumes:
+      - evolution_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  evolution-redis:
+    image: redis:7.4-alpine
+    container_name: agenda-evolution-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - evolution_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: agenda-evolution
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_healthy
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: http://localhost:${EVOLUTION_PORT:-8081}
+      LANGUAGE: pt-BR
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${EVOLUTION_POSTGRES_USER}:${EVOLUTION_POSTGRES_PASSWORD}@evolution-postgres:5432/${EVOLUTION_POSTGRES_DB}?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: agenda_evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: agenda_evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${EVOLUTION_PORT:-8081}:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - backend
+      - edge
+
 networks:
   backend:
     name: agenda-backend
@@ -51,3 +131,9 @@ networks:
 volumes:
   postgres_data:
     name: agenda_postgres_data
+  evolution_postgres_data:
+    name: agenda_evolution_postgres_data
+  evolution_redis_data:
+    name: agenda_evolution_redis_data
+  evolution_instances:
+    name: agenda_evolution_instances

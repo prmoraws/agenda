@@ -12,5 +12,8 @@ button.secondary { background:#52606d; } button.danger { background:#a93636; } b
 .badge { background:#e8eef2; border-radius:20px; padding:4px 9px; font-size:.82rem; }
 .notice { background:#fff6d8; border-left:4px solid #c89300; padding:10px; }
 #toast { position:fixed; right:18px; bottom:18px; max-width:360px; background:#18212f; color:#fff; padding:12px 16px; border-radius:8px; display:none; }
+.qr { display:block; width:min(320px,100%); margin:16px auto; image-rendering:pixelated; }
 fieldset { border:1px solid #dce2e8; border-radius:7px; } .check { display:flex; font-weight:400; margin:7px 0; }
 @media(min-width:900px){ main { grid-template-columns:1fr 1.4fr; } main section:last-child { grid-column:1/-1; } }
+
+.connected { color:#116149; background:#e5f6ef; padding:10px; border-radius:7px; font-weight:700; }

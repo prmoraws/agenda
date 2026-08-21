@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agenda Business</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header><h1>Agenda Business</h1><p>Agendamentos seguros para grupos autorizados</p></header>
+  <main>
+    <section>
+      <h2>1. Grupos autorizados</h2>
+      <form id="group-form">
+        <label>Nome do grupo<input name="displayName" required maxlength="200" placeholder="Ex.: Coordenação UNP"></label>
+        <label>JID do grupo<input name="groupJid" required placeholder="120363000000000000@g.us"></label>
+        <button>Cadastrar grupo</button>
+      </form>
+      <div id="groups"></div>
+    </section>
+
+    <section>
+      <h2>2. Novo agendamento</h2>
+      <form id="message-form">
+        <label>Mensagem<textarea name="content" required maxlength="4096" rows="5"></textarea></label>
+        <label>Data e horário<input name="scheduledAt" type="datetime-local" required></label>
+        <fieldset><legend>Grupos de destino</legend><div id="group-options">Cadastre e autorize um grupo.</div></fieldset>
+        <button>Salvar como rascunho</button>
+      </form>
+      <p class="notice">Confirmar ainda não envia mensagens. O executor do WhatsApp será instalado no próximo bloco.</p>
+    </section>
+
+    <section>
+      <h2>3. Agendamentos</h2>
+      <div id="messages"></div>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

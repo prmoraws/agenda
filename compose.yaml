@@ -1,6 +1,25 @@
 name: ${COMPOSE_PROJECT_NAME:-agenda}
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agenda-app
+    restart: unless-stopped
+    environment:
+      PORT: 3010
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agenda}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agenda}
+      SCHEDULER_TIMEZONE: ${DOMO_SCHEDULER_TIMEZONE:-America/Bahia}
+    ports:
+      - "127.0.0.1:${AGENDA_PORT:-3010}:3010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+      - edge
+
   postgres:
     image: postgres:17-alpine
     container_name: agenda-postgres
@@ -10,8 +29,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-agenda}
       POSTGRES_USER: ${POSTGRES_USER:-agenda}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "127.0.0.1:5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -28,6 +45,8 @@ networks:
   backend:
     name: agenda-backend
     internal: true
+  edge:
+    name: agenda-edge
 
 volumes:
   postgres_data:

@@ -14,10 +14,19 @@ const sql = fs.readFileSync(
   ),
   'utf8',
 );
+const compose = fs.readFileSync(path.join(projectRoot, 'compose.yaml'), 'utf8');
+const server = fs.readFileSync(path.join(projectRoot, 'src/server.mjs'), 'utf8');
 for (const table of ['business_groups','business_messages','business_deliveries','business_events']) {
   assert.match(sql, new RegExp(`CREATE TABLE ${table}`));
 }
 assert.match(sql, /UNIQUE \(message_id, group_id\)/);
 assert.match(sql, /authorized = FALSE OR confirmed_at IS NOT NULL/);
 assert.doesNotMatch(sql, /DROP TABLE|TRUNCATE|DELETE FROM/i);
-console.log(JSON.stringify({status:'ok',project:'agenda',tables:4,idempotency:true}));
+assert.match(compose, /127\.0\.0\.1:\$\{AGENDA_PORT:-3010\}:3010/);
+assert.match(server, /status = 'draft'/);
+assert.match(server, /status IN \('draft','confirmed'\)/);
+assert.doesNotMatch(server, /sendText|sendMessage|Evolution/);
+console.log(JSON.stringify({
+  status: 'ok', project: 'agenda', tables: 4, panel: true,
+  humanConfirmation: true, cancellation: true, sendingEnabled: false,
+}));

@@ -5,13 +5,17 @@ CREATE TABLE business_groups (
   instance_name VARCHAR(100) NOT NULL,
   group_jid VARCHAR(100) NOT NULL,
   display_name VARCHAR(200) NOT NULL,
+  group_kind VARCHAR(32) NOT NULL DEFAULT 'group' CHECK
+    (group_kind IN ('group','community','community_announcement','community_subgroup')),
+  community_jid VARCHAR(100),
+  sendable BOOLEAN NOT NULL DEFAULT TRUE,
   authorized BOOLEAN NOT NULL DEFAULT FALSE,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   confirmed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (instance_name, group_jid),
-  CHECK (group_jid ~ '^[0-9]+@g[.]us$'),
+  CHECK (group_jid ~ '^[0-9]+(-[0-9]+)?@g[.]us$'),
   CHECK (authorized = FALSE OR confirmed_at IS NOT NULL)
 );
 
@@ -21,10 +25,11 @@ CREATE TABLE business_messages (
   scheduled_at TIMESTAMPTZ NOT NULL,
   timezone VARCHAR(64) NOT NULL DEFAULT 'America/Bahia',
   status VARCHAR(24) NOT NULL DEFAULT 'draft' CHECK (status IN
-    ('draft','confirmed','processing','completed','partial_failed','failed','cancelled')),
+    ('draft','confirmed','processing','completed','partial_failed','failed','cancelled','deleted')),
   idempotency_key VARCHAR(100) NOT NULL UNIQUE,
   confirmed_at TIMESTAMPTZ,
   cancelled_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (status IN ('draft','cancelled') OR confirmed_at IS NOT NULL),

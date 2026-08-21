@@ -39,8 +39,23 @@ export const findInstance = (payload, instanceName) => {
 
 export const normalizeGroups = payload => {
   const groups = Array.isArray(payload) ? payload : payload?.groups ?? payload?.data ?? [];
-  return groups.map(group => ({
-    groupJid: String(group?.id ?? group?.remoteJid ?? '').trim(),
-    displayName: String(group?.subject ?? group?.name ?? '').trim(),
-  })).filter(group => /^[0-9]+@g\.us$/.test(group.groupJid) && group.displayName);
+  return groups.map(group => {
+    const communityJid = String(group?.linkedParent ?? group?.parentGroupJid ?? '').trim() || null;
+    const isCommunity = Boolean(group?.isCommunity);
+    const isAnnouncement = Boolean(group?.isCommunityAnnounce ?? group?.isCommunityAnnouncement);
+    const groupKind = isAnnouncement
+      ? 'community_announcement'
+      : isCommunity
+        ? 'community'
+        : communityJid
+          ? 'community_subgroup'
+          : 'group';
+    return {
+      groupJid: String(group?.id ?? group?.remoteJid ?? '').trim(),
+      displayName: String(group?.subject ?? group?.name ?? '').trim(),
+      groupKind,
+      communityJid,
+      sendable: groupKind !== 'community',
+    };
+  }).filter(group => /^[0-9]+(?:-[0-9]+)?@g\.us$/.test(group.groupJid) && group.displayName);
 };

@@ -57,15 +57,32 @@ app.post('/api/whatsapp/import-groups', async (_request, reply) => {
     let imported = 0;
     for (const group of groups) {
       const result = await pool.query(`
-        INSERT INTO business_groups (instance_name, group_jid, display_name)
-        VALUES ($1, $2, $3)
+        INSERT INTO business_groups (
+          instance_name, group_jid, display_name, group_kind, community_jid, sendable
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (instance_name, group_jid)
-        DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = NOW()
+        DO UPDATE SET
+          display_name = EXCLUDED.display_name,
+          group_kind = EXCLUDED.group_kind,
+          community_jid = EXCLUDED.community_jid,
+          sendable = EXCLUDED.sendable,
+          updated_at = NOW()
         RETURNING id
-      `, [instanceName, group.groupJid, group.displayName]);
+      `, [
+        instanceName, group.groupJid, group.displayName, group.groupKind,
+        group.communityJid, group.sendable,
+      ]);
       imported += result.rowCount;
     }
-    return { status: 'ok', discovered: groups.length, imported, authorizedAutomatically: false };
+    const kinds = groups.reduce((totals, group) => {
+      totals[group.groupKind] = (totals[group.groupKind] ?? 0) + 1;
+      return totals;
+    }, {});
+    return {
+      status: 'ok', discovered: groups.length, imported, kinds,
+      authorizedAutomatically: false,
+    };
   } finally {
     groupImportInProgress = false;
   }
@@ -74,6 +91,7 @@ app.post('/api/whatsapp/import-groups', async (_request, reply) => {
 app.get('/api/groups', async () => {
   const { rows } = await pool.query(`
     SELECT id, group_jid AS "groupJid", display_name AS "displayName",
+      group_kind AS "groupKind", community_jid AS "communityJid", sendable,
       authorized, active, confirmed_at AS "confirmedAt"
     FROM business_groups ORDER BY display_name
   `);
@@ -96,7 +114,7 @@ app.post('/api/groups/:id/authorize', async (request, reply) => {
   const id = Number(request.params.id);
   const { rows } = await pool.query(`
     UPDATE business_groups SET authorized = TRUE, confirmed_at = NOW(), updated_at = NOW()
-    WHERE id = $1 AND active = TRUE RETURNING id
+    WHERE id = $1 AND active = TRUE AND sendable = TRUE RETURNING id
   `, [id]);
   if (!rows.length) return reply.code(404).send({ error: 'Grupo não encontrado' });
   return { status: 'authorized', id };
@@ -109,9 +127,111 @@ app.get('/api/messages', async () => {
       COUNT(d.id)::int AS "groupCount"
     FROM business_messages m
     LEFT JOIN business_deliveries d ON d.message_id = m.id
+    WHERE m.status <> 'deleted'
     GROUP BY m.id ORDER BY m.created_at DESC LIMIT 100
   `);
   return rows;
+});
+
+app.get('/api/messages/:id', async (request, reply) => {
+  const id = Number(request.params.id);
+  const message = await pool.query(`
+    SELECT id, content, scheduled_at AS "scheduledAt", timezone, status,
+      confirmed_at AS "confirmedAt", cancelled_at AS "cancelledAt",
+      created_at AS "createdAt", updated_at AS "updatedAt"
+    FROM business_messages WHERE id = $1 AND status <> 'deleted'
+  `, [id]);
+  if (!message.rowCount) return reply.code(404).send({ error: 'Agendamento não encontrado' });
+  const deliveries = await pool.query(`
+    SELECT d.id, d.status, d.attempt_count AS "attemptCount",
+      d.max_attempts AS "maxAttempts", d.sent_at AS "sentAt",
+      g.id AS "groupId", g.display_name AS "groupName", g.group_jid AS "groupJid"
+    FROM business_deliveries d
+    JOIN business_groups g ON g.id = d.group_id
+    WHERE d.message_id = $1 ORDER BY g.display_name, g.group_jid
+  `, [id]);
+  return { ...message.rows[0], deliveries: deliveries.rows };
+});
+
+app.put('/api/messages/:id', async (request, reply) => {
+  const id = Number(request.params.id);
+  const draft = validateDraft(request.body ?? {});
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query(`
+      SELECT id FROM business_messages
+      WHERE id = $1 AND status IN ('draft','confirmed') FOR UPDATE
+    `, [id]);
+    if (!current.rowCount) {
+      await client.query('ROLLBACK');
+      return reply.code(409).send({ error: 'Este agendamento não pode mais ser editado' });
+    }
+    const groups = await client.query(`
+      SELECT id FROM business_groups
+      WHERE id = ANY($1::bigint[]) AND active = TRUE
+        AND authorized = TRUE AND sendable = TRUE
+    `, [draft.groupIds]);
+    if (groups.rowCount !== draft.groupIds.length) throw new Error('Há grupo inexistente ou não autorizado');
+    const inProgress = await client.query(`
+      SELECT 1 FROM business_deliveries
+      WHERE message_id = $1 AND status IN ('processing','sent') LIMIT 1
+    `, [id]);
+    if (inProgress.rowCount) throw new Error('Agendamento já possui entrega processada e não pode ser editado');
+    await client.query(`
+      UPDATE business_messages SET content = $2, scheduled_at = $3,
+        status = 'draft', confirmed_at = NULL, updated_at = NOW()
+      WHERE id = $1
+    `, [id, draft.content, draft.scheduledAt]);
+    await client.query('DELETE FROM business_deliveries WHERE message_id = $1', [id]);
+    for (const groupId of draft.groupIds) {
+      await client.query(`
+        INSERT INTO business_deliveries (message_id, group_id) VALUES ($1, $2)
+      `, [id, groupId]);
+    }
+    await client.query('COMMIT');
+    return { id, status: 'draft', requiresConfirmation: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/messages/:id', async (request, reply) => {
+  const id = Number(request.params.id);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const blocked = await client.query(`
+      SELECT 1 FROM business_deliveries
+      WHERE message_id = $1 AND status IN ('processing','sent') LIMIT 1
+    `, [id]);
+    if (blocked.rowCount) {
+      await client.query('ROLLBACK');
+      return reply.code(409).send({ error: 'Agendamento com entrega processada não pode ser apagado' });
+    }
+    const result = await client.query(`
+      UPDATE business_messages SET status = 'deleted', deleted_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND status IN ('draft','confirmed','cancelled') RETURNING id
+    `, [id]);
+    if (!result.rowCount) {
+      await client.query('ROLLBACK');
+      return reply.code(409).send({ error: 'Agendamento não pode ser apagado neste estado' });
+    }
+    await client.query(`
+      UPDATE business_deliveries SET status = 'cancelled', updated_at = NOW()
+      WHERE message_id = $1 AND status = 'pending'
+    `, [id]);
+    await client.query('COMMIT');
+    return { status: 'deleted', id };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 
 app.post('/api/messages', async (request, reply) => {
@@ -121,7 +241,8 @@ app.post('/api/messages', async (request, reply) => {
     await client.query('BEGIN');
     const groups = await client.query(`
       SELECT id FROM business_groups
-      WHERE id = ANY($1::bigint[]) AND active = TRUE AND authorized = TRUE
+      WHERE id = ANY($1::bigint[]) AND active = TRUE
+        AND authorized = TRUE AND sendable = TRUE
     `, [draft.groupIds]);
     if (groups.rowCount !== draft.groupIds.length) throw new Error('Há grupo inexistente ou ainda não autorizado');
     const inserted = await client.query(`

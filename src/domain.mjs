@@ -3,7 +3,7 @@ export const normalizeGroupJid = value => String(value ?? '').trim();
 export const validateGroup = ({ groupJid, displayName }) => {
   const jid = normalizeGroupJid(groupJid);
   const name = String(displayName ?? '').trim();
-  if (!/^[0-9]+@g\.us$/.test(jid)) throw new Error('JID de grupo inválido');
+  if (!/^[0-9]+(?:-[0-9]+)?@g\.us$/.test(jid)) throw new Error('JID de grupo inválido');
   if (name.length < 2 || name.length > 200) throw new Error('Nome do grupo inválido');
   return { groupJid: jid, displayName: name };
 };

@@ -12,6 +12,14 @@ test('recusa conversa individual', () => {
   assert.throws(() => validateGroup({ groupJid: '557199999999@s.whatsapp.net', displayName: 'Pessoa' }), /JID/);
 });
 
+test('aceita JID legado de grupo com hífen', () => {
+  const group = validateGroup({
+    groupJid: '557191191233-1515362953@g.us',
+    displayName: 'Grupo legado',
+  });
+  assert.equal(group.groupJid, '557191191233-1515362953@g.us');
+});
+
 test('normaliza destinatários sem duplicar', () => {
   const result = validateDraft({
     content: 'Mensagem de teste',

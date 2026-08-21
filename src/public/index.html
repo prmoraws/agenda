@@ -21,22 +21,39 @@
       <p class="notice">A conexão permite descobrir grupos. O envio de mensagens permanece bloqueado.</p>
     </section>
     <section>
-      <h2>1. Grupos autorizados</h2>
+      <h2>1. Grupos disponíveis</h2>
       <form id="group-form">
         <label>Nome do grupo<input name="displayName" required maxlength="200" placeholder="Ex.: Coordenação UNP"></label>
         <label>JID do grupo<input name="groupJid" required placeholder="120363000000000000@g.us"></label>
         <button>Cadastrar grupo</button>
       </form>
+      <div class="group-tools">
+        <input id="group-search" type="search" placeholder="Buscar por nome ou JID">
+        <select id="group-filter" aria-label="Filtrar grupos">
+          <option value="all">Todos os tipos</option>
+          <option value="group">Grupos comuns</option>
+          <option value="community">Comunidades</option>
+          <option value="community_announcement">Avisos da comunidade</option>
+          <option value="community_subgroup">Subgrupos da comunidade</option>
+          <option value="authorized">Somente autorizados</option>
+          <option value="pending">Aguardando autorização</option>
+        </select>
+      </div>
+      <p id="group-summary"></p>
       <div id="groups"></div>
     </section>
 
     <section>
       <h2>2. Novo agendamento</h2>
+      <div id="edit-notice" class="edit-notice" hidden></div>
       <form id="message-form">
         <label>Mensagem<textarea name="content" required maxlength="4096" rows="5"></textarea></label>
         <label>Data e horário<input name="scheduledAt" type="datetime-local" required></label>
         <fieldset><legend>Grupos de destino</legend><div id="group-options">Cadastre e autorize um grupo.</div></fieldset>
-        <button>Salvar como rascunho</button>
+        <div class="card-actions">
+          <button id="save-message">Salvar como rascunho</button>
+          <button id="cancel-edit" type="button" class="secondary" hidden>Cancelar edição</button>
+        </div>
       </form>
       <p class="notice">Confirmar ainda não envia mensagens. O executor do WhatsApp será instalado no próximo bloco.</p>
     </section>
@@ -46,6 +63,10 @@
       <div id="messages"></div>
     </section>
   </main>
+  <dialog id="details-dialog">
+    <div class="dialog-header"><h2>Detalhes do agendamento</h2><button id="close-details" class="secondary">Fechar</button></div>
+    <div id="details-content"></div>
+  </dialog>
   <div id="toast" role="status"></div>
   <script type="module" src="/app.js"></script>
 </body>

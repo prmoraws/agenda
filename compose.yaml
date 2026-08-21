@@ -1,0 +1,34 @@
+name: ${COMPOSE_PROJECT_NAME:-agenda}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: agenda-postgres
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-America/Bahia}
+      POSTGRES_DB: ${POSTGRES_DB:-agenda}
+      POSTGRES_USER: ${POSTGRES_USER:-agenda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - backend
+
+networks:
+  backend:
+    name: agenda-backend
+    internal: true
+
+volumes:
+  postgres_data:
+    name: agenda_postgres_data

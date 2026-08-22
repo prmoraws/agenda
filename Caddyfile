@@ -1,0 +1,12 @@
+{
+  auto_https off
+  admin off
+}
+
+:8080 {
+  basic_auth {
+    {$AGENDA_AUTH_USER} {$AGENDA_AUTH_PASSWORD_HASH}
+  }
+
+  reverse_proxy app:3010
+}

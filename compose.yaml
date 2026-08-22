@@ -30,6 +30,36 @@ services:
     volumes:
       - media_data:/app/data/uploads
 
+  gateway:
+    image: caddy:2.10.2-alpine
+    container_name: agenda-gateway
+    restart: unless-stopped
+    environment:
+      AGENDA_AUTH_USER: ${AGENDA_AUTH_USER:-agenda-admin}
+      AGENDA_AUTH_PASSWORD_HASH: ${AGENDA_AUTH_PASSWORD_HASH}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - edge
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: agenda-cloudflared
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --url
+      - http://gateway:8080
+    depends_on:
+      gateway:
+        condition: service_started
+    networks:
+      - edge
+
   postgres:
     image: postgres:17-alpine
     container_name: agenda-postgres

@@ -39,6 +39,17 @@ services:
       AGENDA_AUTH_PASSWORD_HASH: ${AGENDA_AUTH_PASSWORD_HASH}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1:8080/gateway-health
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     depends_on:
       app:
         condition: service_started
@@ -46,7 +57,7 @@ services:
       - edge
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.8.2
     container_name: agenda-cloudflared
     restart: unless-stopped
     command:
@@ -56,7 +67,7 @@ services:
       - http://gateway:8080
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     networks:
       - edge
 

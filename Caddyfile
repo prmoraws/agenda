@@ -1,12 +1,18 @@
 {
-  auto_https off
-  admin off
+	auto_https off
+	admin off
 }
 
 :8080 {
-  basic_auth {
-    {$AGENDA_AUTH_USER} {$AGENDA_AUTH_PASSWORD_HASH}
-  }
+	handle /gateway-health {
+		respond "ok" 200
+	}
 
-  reverse_proxy app:3010
+	handle {
+		basic_auth {
+			{$AGENDA_AUTH_USER} {$AGENDA_AUTH_PASSWORD_HASH}
+		}
+
+		reverse_proxy app:3010
+	}
 }

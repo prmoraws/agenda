@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test src/*.test.mjs",
-    "validate": "node scripts/validate.mjs && npm test"
+    "validate": "node scripts/validate.mjs && npm test",
+    "public:start": "sh scripts/start-public-access.sh",
+    "public:url": "sh scripts/public-url.sh"
   },
   "dependencies": {
     "fastify": "5.6.1",

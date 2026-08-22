@@ -107,3 +107,24 @@ DELIVERY_WORKER_INTERVAL_MS=15000
 
 Recrie somente o painel com `docker compose up -d --build app`. O estado pode
 ser conferido em `http://127.0.0.1:3010/api/worker/status`.
+
+## Acesso externo gratuito
+
+O painel pode ser acessado externamente por um Quick Tunnel da
+Cloudflare, protegido pelo gateway Caddy com autenticação obrigatória.
+
+Iniciar ou recuperar o acesso externo:
+
+```bash
+npm run public:start
+```
+
+Consultar o endereço atual:
+
+```bash
+npm run public:url
+```
+
+O endereço `trycloudflare.com` é temporário e pode mudar quando o
+contêiner `agenda-cloudflared` for recriado. PostgreSQL, Redis e
+Evolution permanecem inacessíveis pela Internet.

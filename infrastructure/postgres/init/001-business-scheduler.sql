@@ -30,10 +30,62 @@ CREATE TABLE business_messages (
   confirmed_at TIMESTAMPTZ,
   cancelled_at TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ,
+  media_path TEXT,
+  media_mime_type VARCHAR(50),
+  media_original_name VARCHAR(200),
+  series_id UUID,
+  recurrence_type VARCHAR(16) NOT NULL DEFAULT 'none',
+  occurrence_number SMALLINT NOT NULL DEFAULT 1,
+  occurrence_count SMALLINT NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (status IN ('draft','cancelled') OR confirmed_at IS NOT NULL),
   CHECK (status <> 'cancelled' OR cancelled_at IS NOT NULL)
+  ,CHECK (
+    (media_path IS NULL AND media_mime_type IS NULL AND media_original_name IS NULL)
+    OR
+    (media_path IS NOT NULL AND media_mime_type IN ('image/jpeg','image/png','image/webp')
+      AND media_original_name IS NOT NULL)
+  )
+  ,CHECK (
+    recurrence_type IN ('none','weekly')
+    AND occurrence_count BETWEEN 1 AND 52
+    AND occurrence_number BETWEEN 1 AND occurrence_count
+    AND (
+      (recurrence_type = 'none' AND occurrence_count = 1 AND series_id IS NULL)
+      OR
+      (recurrence_type = 'weekly' AND occurrence_count >= 2 AND series_id IS NOT NULL)
+    )
+  )
+);
+
+CREATE TABLE business_labels (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  color VARCHAR(7) NOT NULL DEFAULT '#52606d' CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
+  source VARCHAR(20) NOT NULL DEFAULT 'agenda' CHECK (source IN ('agenda','evolution')),
+  external_id VARCHAR(100),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (source, name),
+  UNIQUE (source, external_id)
+);
+
+CREATE TABLE business_group_labels (
+  group_id BIGINT NOT NULL REFERENCES business_groups(id) ON DELETE CASCADE,
+  label_id BIGINT NOT NULL REFERENCES business_labels(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (group_id, label_id)
+);
+
+CREATE TABLE business_message_templates (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  content TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 4096),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE business_deliveries (
@@ -69,5 +121,10 @@ CREATE INDEX business_deliveries_due_idx ON business_deliveries (next_attempt_at
   WHERE status IN ('pending','failed');
 CREATE INDEX business_messages_due_idx ON business_messages (scheduled_at, id)
   WHERE status = 'confirmed';
+CREATE INDEX business_messages_series_idx ON business_messages (series_id, occurrence_number)
+  WHERE series_id IS NOT NULL;
+CREATE INDEX business_group_labels_label_idx ON business_group_labels (label_id, group_id);
+CREATE INDEX business_message_templates_active_idx ON business_message_templates (name)
+  WHERE active = TRUE;
 
 COMMIT;

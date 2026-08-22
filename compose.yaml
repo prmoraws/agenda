@@ -14,7 +14,9 @@ services:
       DOMO_BUSINESS_INSTANCE_NAME: ${DOMO_BUSINESS_INSTANCE_NAME:-domo-business-agendamentos}
       EVOLUTION_URL: http://evolution:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
-      WHATSAPP_SENDING_ENABLED: "false"
+      WHATSAPP_SENDING_ENABLED: ${WHATSAPP_SENDING_ENABLED:-false}
+      DELIVERY_WORKER_INTERVAL_MS: ${DELIVERY_WORKER_INTERVAL_MS:-15000}
+      MEDIA_STORAGE_PATH: /app/data/uploads
     ports:
       - "127.0.0.1:${AGENDA_PORT:-3010}:3010"
     depends_on:
@@ -25,6 +27,8 @@ services:
     networks:
       - backend
       - edge
+    volumes:
+      - media_data:/app/data/uploads
 
   postgres:
     image: postgres:17-alpine
@@ -105,7 +109,7 @@ services:
       DATABASE_SAVE_MESSAGE_UPDATE: "false"
       DATABASE_SAVE_DATA_CONTACTS: "false"
       DATABASE_SAVE_DATA_CHATS: "false"
-      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_LABELS: "true"
       DATABASE_SAVE_DATA_HISTORIC: "false"
       CACHE_REDIS_ENABLED: "true"
       CACHE_REDIS_URI: redis://evolution-redis:6379/6
@@ -137,3 +141,5 @@ volumes:
     name: agenda_evolution_redis_data
   evolution_instances:
     name: agenda_evolution_instances
+  media_data:
+    name: agenda_media_data

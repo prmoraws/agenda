@@ -29,6 +29,37 @@ export const fetchGroups = instanceName => evolutionRequest(
   `/group/fetchAllGroups/${encodeURIComponent(instanceName)}?getParticipants=false`,
   { timeoutMs: 180_000 },
 );
+export const fetchLabels = instanceName => evolutionRequest(
+  `/label/findLabels/${encodeURIComponent(instanceName)}`,
+);
+export const fetchGroupInviteInfo = (instanceName, inviteCode) => evolutionRequest(
+  `/group/inviteInfo/${encodeURIComponent(instanceName)}?inviteCode=${encodeURIComponent(inviteCode)}`,
+  { timeoutMs: 45_000 },
+);
+export const sendTextMessage = (instanceName, number, text) => evolutionRequest(
+  `/message/sendText/${encodeURIComponent(instanceName)}`,
+  {
+    method: 'POST',
+    body: JSON.stringify({ number, text, delay: 1_000 }),
+    timeoutMs: 45_000,
+  },
+);
+export const sendImageMessage = (instanceName, number, caption, mediaBase64, mimeType, fileName) => evolutionRequest(
+  `/message/sendMedia/${encodeURIComponent(instanceName)}`,
+  {
+    method: 'POST',
+    body: JSON.stringify({
+      number,
+      mediatype: 'image',
+      mimetype: mimeType,
+      caption,
+      media: mediaBase64,
+      fileName,
+      delay: 1_000,
+    }),
+    timeoutMs: 60_000,
+  },
+);
 
 export const findInstance = (payload, instanceName) => {
   const instances = Array.isArray(payload) ? payload : payload?.instances ?? [];
@@ -58,4 +89,22 @@ export const normalizeGroups = payload => {
       sendable: groupKind !== 'community',
     };
   }).filter(group => /^[0-9]+(?:-[0-9]+)?@g\.us$/.test(group.groupJid) && group.displayName);
+};
+
+export const normalizeLabels = payload => {
+  const labels = Array.isArray(payload) ? payload : payload?.labels ?? payload?.data ?? [];
+  return labels.map(label => ({
+    externalId: String(label?.id ?? label?.labelId ?? '').trim(),
+    name: String(label?.name ?? label?.labelName ?? '').trim(),
+    color: /^#[0-9a-f]{6}$/i.test(String(label?.color ?? ''))
+      ? String(label.color).toLowerCase() : '#52606d',
+  })).filter(label => label.externalId && label.name);
+};
+
+export const normalizeInviteGroup = payload => {
+  const group = payload?.group ?? payload?.data?.group ?? payload?.data ?? payload;
+  return {
+    groupJid: String(group?.id ?? group?.groupJid ?? group?.jid ?? '').trim(),
+    displayName: String(group?.subject ?? group?.name ?? '').trim(),
+  };
 };

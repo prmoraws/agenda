@@ -7,10 +7,30 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header><h1>Agenda Business</h1><p>Agendamentos seguros para grupos autorizados</p></header>
-  <main>
-    <section>
-      <h2>0. Conexão WhatsApp Business</h2>
+  <header class="app-header">
+    <div><span class="eyebrow">WhatsApp Business</span><h1>Agenda</h1><p>Comunicação programada, segura e auditável</p></div>
+    <div id="header-status" class="header-status">Verificando serviços...</div>
+  </header>
+  <nav class="app-nav" aria-label="Navegação principal">
+    <button class="nav-button active" data-page="dashboard">Visão geral</button>
+    <button class="nav-button" data-page="schedule">Novo agendamento</button>
+    <button class="nav-button" data-page="groups">Grupos e etiquetas</button>
+    <button class="nav-button" data-page="active">Agendamentos ativos</button>
+    <button class="nav-button" data-page="sent">Enviados</button>
+    <button class="nav-button" data-page="cancelled">Cancelados</button>
+  </nav>
+  <main class="app-main">
+    <div id="page-dashboard" class="page active">
+      <div class="page-title"><div><span class="eyebrow">Operação</span><h2>Visão geral</h2><p>Acompanhe filas, entregas e próximos envios.</p></div><button id="refresh-dashboard" class="secondary">Atualizar</button></div>
+      <div id="dashboard-metrics" class="metric-grid"></div>
+      <section class="panel"><h3>Próximos envios</h3><div id="dashboard-upcoming"></div></section>
+    </div>
+
+    <div id="page-groups" class="page" hidden>
+      <div class="page-title"><div><span class="eyebrow">Destinos</span><h2>Grupos e etiquetas</h2><p>Autorize, classifique e organize os grupos disponíveis.</p></div></div>
+      <div class="two-column">
+      <section class="panel">
+      <h3>Conexão WhatsApp Business</h3>
       <div id="whatsapp-status">Consultando instância...</div>
       <div class="card-actions">
         <button id="create-instance">Criar instância isolada</button>
@@ -18,15 +38,43 @@
         <button id="import-groups" class="secondary">Importar grupos</button>
       </div>
       <div id="qrcode"></div>
-      <p class="notice">A conexão permite descobrir grupos. O envio de mensagens permanece bloqueado.</p>
+      <p id="sending-status" class="notice">Consultando o executor de entregas...</p>
     </section>
-    <section>
-      <h2>1. Grupos disponíveis</h2>
+    <section class="panel">
+      <h3>Etiquetas</h3>
+      <form id="label-form" class="inline-form">
+        <label>Nome<input name="name" required maxlength="80" placeholder="Ex.: Cursos"></label>
+        <label>Cor<input name="color" type="color" value="#16745d"></label>
+        <button>Criar etiqueta</button>
+      </form>
+      <div class="card-actions"><button id="import-labels" class="secondary">Importar catálogo do WhatsApp</button></div>
+      <div id="labels-list" class="label-list"></div>
+      <p class="muted">A associação das etiquetas aos grupos é controlada pelo Agenda.</p>
+    </section>
+    </div>
+    <section class="panel groups-panel">
+      <h3>Grupos disponíveis</h3>
+      <div class="invite-import-card">
+        <div>
+          <strong>Adicionar por links de convite</strong>
+          <p class="muted">Cole até 30 links, um por linha. Nome e JID serão identificados automaticamente.</p>
+        </div>
+        <form id="invite-group-form" class="invite-form">
+          <label class="sr-only" for="invite-urls">Links de convite do WhatsApp</label>
+          <textarea id="invite-urls" name="inviteUrls" required rows="4"
+            placeholder="https://chat.whatsapp.com/...&#10;https://chat.whatsapp.com/..."></textarea>
+          <button>Localizar e adicionar</button>
+        </form>
+        <div id="invite-group-result" class="invite-result" hidden></div>
+      </div>
+      <details class="manual-group-entry">
+        <summary>Cadastro manual por nome e JID</summary>
       <form id="group-form">
         <label>Nome do grupo<input name="displayName" required maxlength="200" placeholder="Ex.: Coordenação UNP"></label>
         <label>JID do grupo<input name="groupJid" required placeholder="120363000000000000@g.us"></label>
         <button>Cadastrar grupo</button>
       </form>
+      </details>
       <div class="group-tools">
         <input id="group-search" type="search" placeholder="Buscar por nome ou JID">
         <select id="group-filter" aria-label="Filtrar grupos">
@@ -37,35 +85,93 @@
           <option value="community_subgroup">Subgrupos da comunidade</option>
           <option value="authorized">Somente autorizados</option>
           <option value="pending">Aguardando autorização</option>
+          <option value="archived">Arquivados</option>
         </select>
+        <select id="group-label-filter" aria-label="Filtrar por etiqueta"><option value="all">Todas as etiquetas</option></select>
       </div>
       <p id="group-summary"></p>
       <div id="groups"></div>
     </section>
+    </div>
 
-    <section>
-      <h2>2. Novo agendamento</h2>
+    <div id="page-schedule" class="page" hidden>
+    <div class="page-title"><div><span class="eyebrow">Programação</span><h2>Novo agendamento</h2><p>Prepare texto, foto, repetição e destinos.</p></div></div>
+    <section class="panel schedule-form-panel">
       <div id="edit-notice" class="edit-notice" hidden></div>
+      <div class="template-panel">
+        <div><strong>Modelos de mensagem</strong><p class="muted">Aplique um texto salvo ou guarde o texto atual para reutilizar.</p></div>
+        <div class="template-actions">
+          <select id="template-select" aria-label="Modelo de mensagem"><option value="">Selecione um modelo</option></select>
+          <button id="apply-template" type="button" class="secondary">Aplicar</button>
+          <button id="delete-template" type="button" class="danger-outline">Excluir</button>
+        </div>
+        <div class="template-actions">
+          <input id="template-name" maxlength="100" placeholder="Nome do novo modelo">
+          <button id="save-template" type="button">Salvar texto atual</button>
+        </div>
+      </div>
       <form id="message-form">
         <label>Mensagem<textarea name="content" required maxlength="4096" rows="5"></textarea></label>
+        <label>Foto opcional
+          <input id="message-image" name="image" type="file" accept="image/jpeg,image/png,image/webp">
+          <span class="muted">JPG, PNG ou WEBP — máximo de 5 MB. O texto será usado como legenda.</span>
+        </label>
+        <div id="image-preview" class="image-preview" hidden>
+          <img id="image-preview-img" alt="Prévia da foto do agendamento">
+          <div><span id="image-preview-name"></span><br><button id="remove-image" type="button" class="danger">Remover foto</button></div>
+        </div>
         <label>Data e horário<input name="scheduledAt" type="datetime-local" required></label>
-        <fieldset><legend>Grupos de destino</legend><div id="group-options">Cadastre e autorize um grupo.</div></fieldset>
+        <div class="recurrence-fields">
+          <label>Repetição
+            <select id="recurrence-type" name="recurrenceType">
+              <option value="none">Não repetir</option>
+              <option value="weekly">Repetir semanalmente</option>
+            </select>
+          </label>
+          <label id="recurrence-count-label" hidden>Quantidade total de semanas
+            <input id="recurrence-count" name="recurrenceCount" type="number" min="2" max="52" value="4">
+            <span class="muted">Inclui o primeiro envio. Máximo: 52 semanas.</span>
+          </label>
+        </div>
+        <p id="recurrence-summary" class="edit-notice" hidden></p>
+        <fieldset><legend>Grupos de destino</legend>
+          <div class="destination-tools">
+            <select id="destination-label-filter"><option value="all">Todos os grupos autorizados</option></select>
+            <button id="select-visible-groups" type="button" class="secondary">Selecionar exibidos</button>
+            <button id="clear-groups" type="button" class="secondary">Limpar seleção</button>
+          </div>
+          <div id="group-options">Cadastre e autorize um grupo.</div>
+        </fieldset>
         <div class="card-actions">
           <button id="save-message">Salvar como rascunho</button>
           <button id="cancel-edit" type="button" class="secondary" hidden>Cancelar edição</button>
         </div>
       </form>
-      <p class="notice">Confirmar ainda não envia mensagens. O executor do WhatsApp será instalado no próximo bloco.</p>
+      <p class="notice">Confirmar coloca a mensagem na fila. Quando o executor estiver ativo, ela será enviada automaticamente no horário programado.</p>
     </section>
+    </div>
 
-    <section>
-      <h2>3. Agendamentos</h2>
-      <div id="messages"></div>
-    </section>
+    <div id="page-active" class="page" hidden><div class="page-title"><div><span class="eyebrow">Fila</span><h2>Agendamentos ativos</h2><p>Rascunhos, confirmados e processando.</p></div></div><section class="panel"><div id="messages-active"></div></section></div>
+    <div id="page-sent" class="page" hidden><div class="page-title"><div><span class="eyebrow">Histórico</span><h2>Enviados</h2><p>Concluídos, falhas e resultados por destino.</p></div></div><section class="panel"><input id="sent-search" type="search" placeholder="Pesquisar mensagem enviada"><div id="messages-sent"></div></section></div>
+    <div id="page-cancelled" class="page" hidden><div class="page-title"><div><span class="eyebrow">Histórico</span><h2>Cancelados</h2><p>Agendamentos interrompidos antes do envio.</p></div></div><section class="panel"><div id="messages-cancelled"></div></section></div>
   </main>
   <dialog id="details-dialog">
     <div class="dialog-header"><h2>Detalhes do agendamento</h2><button id="close-details" class="secondary">Fechar</button></div>
     <div id="details-content"></div>
+  </dialog>
+  <dialog id="labels-dialog">
+    <div class="dialog-header"><h2>Etiquetas do grupo</h2><button id="close-labels" class="secondary">Fechar</button></div>
+    <p id="labels-group-name"></p><div id="labels-options"></div>
+    <div class="card-actions dialog-actions"><button id="save-group-labels">Salvar etiquetas</button></div>
+  </dialog>
+  <dialog id="reuse-dialog">
+    <div class="dialog-header"><h2>Usar mensagem novamente</h2><button id="close-reuse" class="secondary">Fechar</button></div>
+    <p>Será criado um novo rascunho com o mesmo texto, foto e grupos ainda autorizados.</p>
+    <form id="reuse-form">
+      <input id="reuse-source-id" name="sourceId" type="hidden">
+      <label>Nova data e horário<input name="scheduledAt" type="datetime-local" required></label>
+      <div class="card-actions dialog-actions"><button>Criar novo rascunho</button></div>
+    </form>
   </dialog>
   <div id="toast" role="status"></div>
   <script type="module" src="/app.js"></script>

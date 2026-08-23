@@ -56,15 +56,23 @@ services:
     networks:
       - edge
 
-  cloudflared:
-    image: cloudflare/cloudflared:2026.8.2
-    container_name: agenda-cloudflared
+
+  tailscale:
+    image: tailscale/tailscale:v1.102.3
+    container_name: agenda-tailscale
+    hostname: agenda
     restart: unless-stopped
-    command:
-      - tunnel
-      - --no-autoupdate
-      - --url
-      - http://gateway:8080
+    environment:
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: agenda
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_USERSPACE: "true"
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: "[::]:9002"
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+      - ./infrastructure/tailscale:/config:ro
     depends_on:
       gateway:
         condition: service_healthy
@@ -174,6 +182,8 @@ networks:
     name: agenda-edge
 
 volumes:
+  tailscale_state:
+    name: agenda_tailscale_state
   postgres_data:
     name: agenda_postgres_data
   evolution_postgres_data:

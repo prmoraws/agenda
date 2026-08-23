@@ -128,3 +128,11 @@ npm run public:url
 O endereço `trycloudflare.com` é temporário e pode mudar quando o
 contêiner `agenda-cloudflared` for recriado. PostgreSQL, Redis e
 Evolution permanecem inacessíveis pela Internet.
+
+## Acesso externo
+
+O painel possui endereço HTTPS permanente e protegido:
+
+- https://agenda.tailbd3b60.ts.net
+- operação: `npm run access:status`
+- documentação: [Acesso externo pelo Tailscale](docs/ACESSO-EXTERNO-TAILSCALE.md)

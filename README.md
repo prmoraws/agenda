@@ -136,3 +136,13 @@ O painel possui endereço HTTPS permanente e protegido:
 - https://agenda.tailbd3b60.ts.net
 - operação: `npm run access:status`
 - documentação: [Acesso externo pelo Tailscale](docs/ACESSO-EXTERNO-TAILSCALE.md)
+
+## Backup
+
+Crie um backup completo sem segredos:
+
+```bash
+npm run backup
+```
+
+Consulte [Backup e recuperação](docs/BACKUP-E-RECUPERACAO.md).

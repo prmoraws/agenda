@@ -8,7 +8,8 @@
     "test": "node --test src/*.test.mjs",
     "validate": "node scripts/validate.mjs && npm test",
     "access:status": "sh scripts/access-status.sh",
-    "backup": "sh scripts/backup-local.sh"
+    "backup": "sh scripts/backup-local.sh",
+    "backup:auto": "sh scripts/backup-automatic.sh"
   },
   "dependencies": {
     "fastify": "5.6.1",

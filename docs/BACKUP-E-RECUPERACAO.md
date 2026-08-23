@@ -46,3 +46,16 @@ Antes de restaurar:
 
 O arquivo `.env` não faz parte do backup e deve ser protegido
 separadamente.
+
+
+## Automação diária
+
+O Windows executa o backup diariamente às 03:00 através do WSL2.
+
+- Script: `scripts/backup-automatic.sh`
+- Log: `~/agenda-backups/automatic-backup.log`
+- Retenção padrão: 30 dias
+- Execuções simultâneas são bloqueadas
+- Se o horário for perdido, o Windows executa a tarefa quando possível
+
+O Docker Desktop precisa estar iniciado para que o backup seja concluído.
